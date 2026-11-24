@@ -1,0 +1,36 @@
+node_modules/
+.env
+.env.*
+!.env.example
+!.env.production.example
+dist/
+coverage/
+.DS_Store
+*.log
+*.tsbuildinfo
+
+backups/
+.local-mail/
+.local-storage/
+
+# Secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+
+# Dependencies and builds
+node_modules/
+dist/
+coverage/
+*.log
+
+# Local data and backups
+*.dump
+*.db
+backups/
+.DS_Store

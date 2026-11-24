@@ -1,0 +1,534 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlatformRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum MembershipRole {
+  COMPANY_ADMIN
+  HR
+  TRAINER
+  STUDENT
+}
+
+enum MembershipStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+enum ProfileStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum InternshipStatus {
+  DRAFT
+  PUBLISHED
+  ONGOING
+  COMPLETED
+  ARCHIVED
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum BatchStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+model User {
+  id             String @id @default(uuid())
+  email          String @unique
+  name           String
+  passwordHash   String?
+  platformRole   PlatformRole @default(USER)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  emailVerifiedAt DateTime?
+  authTokens      AccountToken[]
+  certificates    Certificate[]
+  quizAttempts    QuizAttempt[]
+  assignmentSubmissions AssignmentSubmission[]
+  sessions       Session[]
+  memberships    TenantMembership[]
+  studentProfiles Student[]
+  trainerProfiles Trainer[]
+  directStudent    StudentAccount?
+  directEnrollments DirectEnrollment[]
+  directOrders     CourseOrder[]
+}
+
+model AccountToken {
+  id        String @id @default(uuid())
+  tokenHash String @unique
+  userId    String
+  purpose   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, purpose])
+}
+
+model EmailJob {
+  id          String @id @default(uuid())
+  recipient   String
+  subject     String
+  body        String
+  attempts    Int @default(0)
+  deliveredAt DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model Tenant {
+  id           String @id @default(uuid())
+  name         String
+  slug         String @unique
+  status       TenantStatus @default(ACTIVE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  memberships  TenantMembership[]
+  students     Student[]
+  trainers     Trainer[]
+  internships  Internship[]
+  courses      Course[]
+  batches      Batch[]
+  invitations  Invitation[]
+  subscriptions Subscription[]
+  auditLogs    AuditLog[]
+  sessions     Session[]
+}
+
+model TenantMembership {
+  id        String @id @default(uuid())
+  userId    String
+  tenantId  String
+  role      MembershipRole
+  status    MembershipStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  user      User @relation(fields: [userId], references: [id])
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  @@unique([userId, tenantId, role])
+  @@index([tenantId, role])
+}
+
+model Session {
+  id         String @id @default(uuid())
+  tokenHash  String @unique
+  csrfToken  String
+  userId     String
+  tenantId   String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant     Tenant? @relation(fields: [tenantId], references: [id])
+  @@index([userId, expiresAt])
+}
+
+model Invitation {
+  id         String @id @default(uuid())
+  tenantId   String
+  email      String
+  name       String
+  role       MembershipRole
+  tokenHash  String @unique
+  status     InvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, email, status])
+}
+
+model Student {
+  id             String @id @default(uuid())
+  tenantId       String
+  userId         String
+  fullName       String
+  studentCode    String
+  phone          String?
+  college        String?
+  department     String?
+  graduationYear Int?
+  status         ProfileStatus @default(ACTIVE)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant @relation(fields: [tenantId], references: [id])
+  user           User @relation(fields: [userId], references: [id])
+  @@unique([tenantId, userId])
+  @@unique([tenantId, studentCode])
+  @@index([tenantId, status])
+}
+
+model Trainer {
+  id             String @id @default(uuid())
+  tenantId       String
+  userId         String
+  fullName       String
+  phone          String?
+  specialization String?
+  status         ProfileStatus @default(ACTIVE)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant @relation(fields: [tenantId], references: [id])
+  user           User @relation(fields: [userId], references: [id])
+  @@unique([tenantId, userId])
+  @@index([tenantId, status])
+}
+
+model Internship {
+  id          String @id @default(uuid())
+  tenantId    String
+  title       String
+  description String?
+  mode        String @default("ONLINE")
+  durationDays Int?
+  capacity    Int?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  status      InternshipStatus @default(DRAFT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  batches     Batch[]
+  @@index([tenantId, status])
+}
+
+model Course {
+  id          String @id @default(uuid())
+  tenantId    String?
+  title       String
+  description String?
+  level       String @default("BEGINNER")
+  status      CourseStatus @default(DRAFT)
+  category    String?
+  thumbnailUrl String?
+  pricePaise  Int @default(0)
+  durationHours Int?
+  previewText String?
+  instructor String?
+  learningObjectives String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant? @relation(fields: [tenantId], references: [id])
+  batches     Batch[]
+  modules     CourseModule[]
+  directEnrollments DirectEnrollment[]
+  directOrders CourseOrder[]
+  certificateTemplateId String?
+  certificateTemplate CertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: Restrict)
+  certificates Certificate[]
+  quizzes Quiz[]
+  assignments Assignment[]
+  @@index([tenantId, status])
+}
+
+model Batch {
+  id           String @id @default(uuid())
+  tenantId     String
+  code         String
+  name         String
+  internshipId String?
+  courseId     String?
+  capacity     Int?
+  startsAt     DateTime?
+  endsAt       DateTime?
+  status       BatchStatus @default(DRAFT)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant @relation(fields: [tenantId], references: [id])
+  internship   Internship? @relation(fields: [internshipId], references: [id])
+  course       Course? @relation(fields: [courseId], references: [id])
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+}
+
+model SubscriptionPlan {
+  id              String @id @default(uuid())
+  name            String @unique
+  monthlyPricePaise Int
+  studentLimit    Int
+  trainerLimit    Int
+  courseLimit     Int
+  createdAt       DateTime @default(now())
+  subscriptions   Subscription[]
+}
+
+model Subscription {
+  id        String @id @default(uuid())
+  tenantId  String
+  planId    String
+  status    SubscriptionStatus @default(TRIAL)
+  startsAt  DateTime @default(now())
+  endsAt    DateTime?
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  plan      SubscriptionPlan @relation(fields: [planId], references: [id])
+  @@index([tenantId, status])
+}
+
+model AuditLog {
+  id         String @id @default(uuid())
+  tenantId   String?
+  actorId    String
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  tenant     Tenant? @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+// Direct-to-student academy (additive migration; legacy company data stays intact).
+enum DirectStudentStatus {
+  ACTIVE
+  DISABLED
+}
+enum LessonKind {
+  PDF
+  TEXT
+  VIDEO
+  LINK
+}
+enum DirectEnrollmentStatus {
+  ACTIVE
+  REVOKED
+}
+enum DirectAccessSource {
+  MANUAL_PAYMENT
+  COMPLIMENTARY
+  ONLINE_PURCHASE
+}
+enum DirectOrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+enum DirectPaymentMethod {
+  UPI
+  BANK_TRANSFER
+  CASH
+  OTHER
+}
+
+model StudentAccount {
+  id          String @id @default(uuid())
+  userId      String @unique
+  studentCode String @unique
+  phone       String?
+  status      DirectStudentStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model CourseModule {
+  archivedAt DateTime?
+  id        String @id @default(uuid())
+  courseId  String
+  title     String
+  position  Int @default(0)
+  createdAt DateTime @default(now())
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  lessons   Lesson[]
+  @@index([courseId, position])
+}
+
+model Lesson {
+  archivedAt DateTime?
+  id          String @id @default(uuid())
+  moduleId    String
+  title       String
+  kind        LessonKind @default(TEXT)
+  content     String?
+  contentUrl  String?
+  isPreview   Boolean @default(false)
+  position    Int @default(0)
+  createdAt   DateTime @default(now())
+  module      CourseModule @relation(fields: [moduleId], references: [id], onDelete: Restrict)
+  progress    LessonProgress[]
+  @@index([moduleId, position])
+}
+
+model DirectEnrollment {
+  lastActivityAt DateTime?
+  lastLessonId String?
+  expiresAt   DateTime?
+  id          String @id @default(uuid())
+  userId      String
+  courseId    String
+  status      DirectEnrollmentStatus @default(ACTIVE)
+  source      DirectAccessSource
+  grantedById String?
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  revokedAt   DateTime?
+  user        User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  course      Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  progress    LessonProgress[]
+  @@unique([userId, courseId])
+  @@index([courseId, status])
+}
+
+model LessonProgress {
+  id           String @id @default(uuid())
+  enrollmentId String
+  lessonId     String
+  completedAt  DateTime @default(now())
+  enrollment   DirectEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  lesson       Lesson @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+  @@unique([enrollmentId, lessonId])
+}
+
+// Offline purchase requests only. No online payment gateway is connected in this milestone.
+model CourseOrder {
+  id               String @id @default(uuid())
+  userId           String
+  courseId         String
+  amountPaise      Int
+  status           DirectOrderStatus @default(PENDING)
+  paymentMethod    DirectPaymentMethod?
+  paymentReference String?
+  note             String?
+  verifiedById     String?
+  verifiedAt       DateTime?
+  createdAt        DateTime @default(now())
+  user             User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  course           Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  @@index([userId, status])
+  @@index([courseId, status])
+}
+
+model Quiz {
+  id String @id @default(uuid())
+  courseId String
+  title String
+  durationMinutes Int @default(30)
+  maxAttempts Int @default(3)
+  passPercent Int @default(70)
+  published Boolean @default(false)
+  questions Json
+  createdAt DateTime @default(now())
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  attempts QuizAttempt[]
+}
+model QuizAttempt {
+  id String @id @default(uuid())
+  quizId String
+  userId String
+  number Int
+  snapshot Json
+  answers Json?
+  status String @default("IN_PROGRESS")
+  score Int?
+  passed Boolean @default(false)
+  startedAt DateTime @default(now())
+  expiresAt DateTime
+  submittedAt DateTime?
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@unique([quizId, userId, number])
+}
+model QuestionBankItem {
+  id String @id @default(uuid())
+  question Json
+  createdAt DateTime @default(now())
+}
+model Assignment {
+  id String @id @default(uuid())
+  courseId String
+  title String
+  instructions String
+  dueAt DateTime?
+  published Boolean @default(false)
+  maxScore Int @default(100)
+  createdAt DateTime @default(now())
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  submissions AssignmentSubmission[]
+}
+model AssignmentSubmission {
+  id String @id @default(uuid())
+  assignmentId String
+  userId String
+  text String?
+  fileId String?
+  submittedAt DateTime @default(now())
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  reviews AssignmentReview[]
+  @@index([assignmentId, userId])
+}
+model AssignmentReview {
+  id String @id @default(uuid())
+  submissionId String
+  reviewerId String
+  score Int
+  feedback String
+  createdAt DateTime @default(now())
+  submission AssignmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+}
+
+model CertificateTemplate {
+  id String @id @default(uuid())
+  name String
+  brandName String
+  signatory String
+  accentColor String @default("#3456dc")
+  requireAllLessons Boolean @default(true)
+  requireQuizzes Boolean @default(true)
+  requireAssignments Boolean @default(true)
+  assignmentPassPercent Int @default(70)
+  createdAt DateTime @default(now())
+  courses Course[]
+}
+
+model Certificate {
+  id String @id @default(uuid())
+  userId String
+  courseId String
+  snapshot Json
+  issuedById String
+  issuedAt DateTime @default(now())
+  exceptionReason String?
+  revokedAt DateTime?
+  revokedById String?
+  revokeReason String?
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  @@unique([userId, courseId])
+}
