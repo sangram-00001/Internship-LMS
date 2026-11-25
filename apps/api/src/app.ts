@@ -5,6 +5,8 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.js';
 import mediaRoutes from './routes/media.js';
+import communicationRoutes from './routes/communication.js';
+import commerceRoutes from './routes/commerce.js';
 import certificateRoutes from './routes/certificates.js';
 import assessmentRoutes from './routes/assessments.js';
 import accountRoutes from './routes/account.js';
@@ -38,6 +40,8 @@ app.use((req, res, next) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/account', accountRoutes);
 app.use('/api/v1/media', mediaRoutes);
+app.use('/api/v1/communication', communicationRoutes);
+app.use('/api/v1/commerce', commerceRoutes);
 app.use('/api/v1/certificates', certificateRoutes);
 app.use('/api/v1/assessments', assessmentRoutes);
 app.use('/api/v1/academy', academyRoutes);

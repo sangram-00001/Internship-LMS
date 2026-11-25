@@ -19,10 +19,12 @@ try {
   const passwordHash=await argon2.hash('browser-fixture-only-2026');
   await db.user.create({data:{email:'browser-admin@example.invalid',name:'Browser Test Administrator',platformRole:'SUPER_ADMIN',passwordHash}});
   const learner=await db.user.create({data:{email:'browser-student@example.invalid',name:'Browser Test Learner',passwordHash,directStudent:{create:{studentCode:'STUBROWSER2026'}}}});
-  const course=await db.course.create({data:{title:'Browser validation course',status:'PUBLISHED',modules:{create:{title:'Introduction',lessons:{create:{title:'Welcome lesson',content:'Complete this sample lesson to validate progress.'}}}}}});
+  const course=await db.course.create({data:{title:'Browser validation course',pricePaise:10000,status:'PUBLISHED',modules:{create:{title:'Introduction',lessons:{create:{title:'Welcome lesson',content:'Complete this sample lesson to validate progress.'}}}}}});
   await db.directEnrollment.create({data:{userId:learner.id,courseId:course.id,source:'COMPLIMENTARY'}});
   await db.quiz.create({data:{courseId:course.id,title:'Browser validation quiz',published:true,questions:[{id:randomUUID(),prompt:'Which option completes this test?',kind:'MCQ',choices:['Correct answer','Incorrect answer'],correctOptions:[0]}]}});
   await db.assignment.create({data:{courseId:course.id,title:'Browser validation assignment',instructions:'Submit a short test response.',published:true}});
+  await db.user.create({data:{email:'browser-buyer@example.invalid',name:'Browser Test Buyer',passwordHash,directStudent:{create:{studentCode:'STUBUYER2026'}}}});
+  await db.course.create({data:{title:'Browser bundle companion',pricePaise:20000,status:'PUBLISHED'}});
   await db.$disconnect();
   children.push(spawn(resolve('../../node_modules/.bin/tsx'),['src/server.ts'],{env,stdio:['ignore','pipe','pipe']}));
   children.push(spawn(resolve('../../node_modules/.bin/vite'),['--host','127.0.0.1','--port','5175','--strictPort'],{cwd:resolve('../web'),env,stdio:['ignore','pipe','pipe']}));

@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
+import { readFile } from 'node:fs/promises';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import { enrollmentActive } from './enrollment.js';
@@ -11,7 +12,7 @@ export const templateInput = z.object({
   requireAllLessons: z.boolean(), requireQuizzes: z.boolean(), requireAssignments: z.boolean(),
   assignmentPassPercent: z.number().int().min(1).max(100),
 }).strict();
-export const certificateSnapshot = z.object({ studentName: z.string(), courseTitle: z.string(), brandName: z.string(), signatory: z.string(), accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/), templateId: z.string().uuid(), verificationOrigin: z.string().url(), requirements: z.object({ requireAllLessons: z.boolean(), requireQuizzes: z.boolean(), requireAssignments: z.boolean(), assignmentPassPercent: z.number() }) });
+export const certificateSnapshot = z.object({ logoAsset: z.literal('aspireedge-20261125.jpg').optional(), studentName: z.string(), courseTitle: z.string(), brandName: z.string(), signatory: z.string(), accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/), templateId: z.string().uuid(), verificationOrigin: z.string().url(), requirements: z.object({ requireAllLessons: z.boolean(), requireQuizzes: z.boolean(), requireAssignments: z.boolean(), assignmentPassPercent: z.number() }) });
 
 export async function certificateEligibility(tx: Prisma.TransactionClient, userId: string, courseId: string) {
   const enrollment = await tx.directEnrollment.findUnique({ where: { userId_courseId: { userId, courseId } }, include: {
@@ -43,6 +44,7 @@ export async function renderCertificate(record: { id: string; snapshot: unknown;
   if (!process.env.CERTIFICATE_FONT_PATH && /[^\x20-\x7E]/.test([data.studentName, data.courseTitle, data.brandName, data.signatory].join(''))) fail(503, 'CERTIFICATE_FONT_REQUIRED', 'Configure a certificate font supporting these characters before downloading.');
   const verifyUrl = `${data.verificationOrigin}/verify-certificate/${record.id}`;
   const qr = await QRCode.toBuffer(verifyUrl, { type: 'png', errorCorrectionLevel: 'M', width: 256, margin: 2 });
+  const logo = data.logoAsset ? await readFile(new URL(`../../assets/${data.logoAsset}`, import.meta.url)) : null;
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40, info: { Title: 'AspireEdge course certificate', Author: data.brandName } });
   const chunks: Buffer[] = [];
   const result = new Promise<Buffer>((resolve, reject) => { doc.on('data', c => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject); });
@@ -55,8 +57,12 @@ export async function renderCertificate(record: { id: string; snapshot: unknown;
     while (doc.heightOfString(text, { width: width - 130 }) > maxHeight && size > 10) doc.fontSize(--size);
     doc.fillColor(color).text(text, 65, y, { width: width - 130, align: 'center', height: maxHeight, ellipsis: true });
   }
-  centered(data.brandName, 63, 18, data.accentColor, 40);
-  centered(record.revokedAt ? 'REVOKED CERTIFICATE' : 'CERTIFICATE OF COMPLETION', 120, 27, record.revokedAt ? '#b42318' : '#182744', 40);
+  if (logo) {
+    const logoWidth = 260, logoHeight = 65, logoX = (width - logoWidth) / 2, logoY = 45;
+    doc.save().rect(logoX, logoY, logoWidth, logoHeight).clip().image(logo, logoX, logoY - (logoWidth - logoHeight) / 2, {width: logoWidth}).restore();
+    centered(data.brandName, 112, 10, data.accentColor, 16);
+  } else centered(data.brandName, 63, 18, data.accentColor, 40);
+  centered(record.revokedAt ? 'REVOKED CERTIFICATE' : 'CERTIFICATE OF COMPLETION', logo ? 140 : 120, 27, record.revokedAt ? '#b42318' : '#182744', 40);
   centered('This certifies that', 184, 12);
   centered(data.studentName, 214, 30);
   centered('has completed the course', 286, 12);

@@ -4,6 +4,9 @@ import { LayoutDashboard, GraduationCap, BookOpen, LogOut, Menu, X, Wallet, User
 import { Brand, initials } from './UI';
 import { useAuth } from '../context/AuthContext';
 const adminNav = [
+ {label:'Announcements', to:'/admin/communication', Icon:Globe},
+ {label:'Student support', to:'/admin/support', Icon:UserRoundCheck},
+ {label:'Commercial tools', to:'/admin/commerce', Icon:ShoppingBag},
  {label:'Certificates', to:'/admin/certificates', Icon:GraduationCap},
  {label:'Quizzes & assignments', to:'/admin/assessments', Icon:GraduationCap},
  {label:'Profile & security', to:'/admin/profile', Icon:UserRoundCheck},
@@ -15,6 +18,9 @@ const adminNav = [
  {label:'Payments & requests', to:'/admin/orders', Icon:Wallet},
 ];
 const studentNav = [
+ {label:'Notifications', to:'/student/notifications', Icon:Globe},
+ {label:'Support', to:'/student/support', Icon:UserRoundCheck},
+ {label:'Wishlist & requests', to:'/student/wishlist', Icon:ShoppingBag},
  {label:'Certificates', to:'/student/certificates', Icon:GraduationCap},
  {label:'Quizzes & assignments', to:'/student/assessments', Icon:GraduationCap},
  {label:'Profile & security', to:'/student/profile', Icon:UserRoundCheck},

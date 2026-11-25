@@ -1,3 +1,4 @@
+import { notifyStudent } from '../lib/notifications.js';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
@@ -55,9 +56,10 @@ router.post('/admin/issue', requirePlatform, asyncRoute(async (req, res) => {
     if (!check.eligible && !input.exceptionReason) fail(409, 'NOT_ELIGIBLE', check.reasons.join(' '));
     const { template } = check;
     const created = await tx.certificate.create({ data: { userId: student.userId, courseId: input.courseId, issuedById: req.auth!.userId, exceptionReason: input.exceptionReason,
-      snapshot: { studentName: check.enrollment.user.name, courseTitle: check.enrollment.course.title, templateId: template.id, brandName: template.brandName, signatory: template.signatory, accentColor: template.accentColor, verificationOrigin: new URL(process.env.WEB_ORIGIN || 'http://localhost:5173').origin,
+      snapshot: { logoAsset: 'aspireedge-20261125.jpg', studentName: check.enrollment.user.name, courseTitle: check.enrollment.course.title, templateId: template.id, brandName: template.brandName, signatory: template.signatory, accentColor: template.accentColor, verificationOrigin: new URL(process.env.WEB_ORIGIN || 'http://localhost:5173').origin,
         requirements: { requireAllLessons: template.requireAllLessons, requireQuizzes: template.requireQuizzes, requireAssignments: template.requireAssignments, assignmentPassPercent: template.assignmentPassPercent } },
     } });
+    await notifyStudent(tx, {userId:student.userId,eventKey:`certificate:${created.id}`,title:'Your certificate is ready',body:`Your completion certificate for ${check.enrollment.course.title} is available.`,path:'/student/certificates'});
     await tx.auditLog.create({ data: { actorId: req.auth!.userId, action: input.exceptionReason ? 'CERTIFICATE_ISSUED_EXCEPTION' : 'CERTIFICATE_ISSUED', entityType: 'Certificate', entityId: created.id, metadata: { reasons: check.reasons, exceptionReason: input.exceptionReason || null, templateId: template.id } } });
     return created;
   }, { isolationLevel: 'Serializable' });
@@ -69,6 +71,7 @@ router.post('/admin/:id/revoke', requirePlatform, asyncRoute(async (req, res) =>
     const record = await tx.certificate.findUnique({ where: { id: certificateId } });
     if (!record) fail(404, 'CERTIFICATE_NOT_FOUND', 'Certificate not found.');
     const updated = await tx.certificate.updateMany({ where: { id: certificateId, revokedAt: null }, data: { revokedAt: new Date(), revokedById: req.auth!.userId, revokeReason: input.reason } });
+    if (updated.count) await notifyStudent(tx, {userId:record.userId,eventKey:`certificate-revoked:${certificateId}`,title:'Certificate status changed',body:'A certificate has been revoked. Open your certificates or contact support for details.',path:'/student/certificates'});
     if (updated.count) await tx.auditLog.create({ data: { actorId: req.auth!.userId, action: 'CERTIFICATE_REVOKED', entityType: 'Certificate', entityId: certificateId, metadata: input } });
   }); res.json({ data: { success: true } });
 }));

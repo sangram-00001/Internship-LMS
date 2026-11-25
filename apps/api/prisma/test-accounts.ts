@@ -17,6 +17,8 @@ try {
   const env = { ...process.env, DATABASE_URL: url.toString() };
   execFileSync(resolve('../../node_modules/.bin/prisma'), ['migrate', 'deploy'], { env, stdio: 'pipe' });
   execFileSync(resolve('../../node_modules/.bin/tsx'), ['tests/accounts.integration.ts'], { env, stdio: 'inherit' });
+  execFileSync(resolve('../../node_modules/.bin/tsx'), ['tests/commerce.integration.ts'], { env, stdio: 'inherit' });
+  execFileSync(resolve('../../node_modules/.bin/tsx'), ['tests/communication.integration.ts'], { env, stdio: 'inherit' });
 } catch {
   console.error('Integration checks failed. No existing database was reset; inspect the test assertion or validation database availability.');
   process.exitCode = 1;

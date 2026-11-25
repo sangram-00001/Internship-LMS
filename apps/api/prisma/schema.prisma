@@ -80,6 +80,12 @@ model User {
   updatedAt      DateTime @updatedAt
   emailVerifiedAt DateTime?
   authTokens      AccountToken[]
+  notifications Notification[]
+  supportTickets SupportTicket[]
+  supportMessages SupportMessage[]
+  wishlist Wishlist[]
+  reviews CourseReview[]
+  orderGroups OrderGroup[]
   certificates    Certificate[]
   quizAttempts    QuizAttempt[]
   assignmentSubmissions AssignmentSubmission[]
@@ -105,6 +111,11 @@ model AccountToken {
 }
 
 model EmailJob {
+  nextAttemptAt DateTime @default(now())
+  lockedAt DateTime?
+  lockId String?
+  notificationId String? @unique
+  notification Notification? @relation(fields: [notificationId], references: [id], onDelete: Restrict)
   id          String @id @default(uuid())
   recipient   String
   subject     String
@@ -250,6 +261,10 @@ model Course {
   directOrders CourseOrder[]
   certificateTemplateId String?
   certificateTemplate CertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: Restrict)
+  coupons Coupon[]
+  bundleItems BundleCourse[]
+  wishlist Wishlist[]
+  reviews CourseReview[]
   certificates Certificate[]
   quizzes Quiz[]
   assignments Assignment[]
@@ -417,6 +432,8 @@ model LessonProgress {
 
 // Offline purchase requests only. No online payment gateway is connected in this milestone.
 model CourseOrder {
+  orderGroupId String?
+  orderGroup OrderGroup? @relation(fields: [orderGroupId], references: [id], onDelete: Restrict)
   id               String @id @default(uuid())
   userId           String
   courseId         String
@@ -531,4 +548,118 @@ model Certificate {
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
   course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
   @@unique([userId, courseId])
+}
+
+model Coupon {
+  id String @id @default(uuid())
+  code String @unique
+  kind String
+  value Int
+  courseId String?
+  expiresAt DateTime?
+  usageLimit Int?
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  course Course? @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  orders OrderGroup[]
+}
+model CourseBundle {
+  id String @id @default(uuid())
+  title String
+  description String
+  pricePaise Int
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+  courses BundleCourse[]
+  orders OrderGroup[]
+}
+model BundleCourse {
+  bundleId String
+  courseId String
+  bundle CourseBundle @relation(fields: [bundleId], references: [id], onDelete: Restrict)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  @@id([bundleId, courseId])
+}
+model OrderGroup {
+  id String @id @default(uuid())
+  userId String
+  bundleId String?
+  title String
+  couponId String?
+  subtotalPaise Int
+  discountPaise Int
+  totalPaise Int
+  status DirectOrderStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  bundle CourseBundle? @relation(fields: [bundleId], references: [id], onDelete: Restrict)
+  coupon Coupon? @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  orders CourseOrder[]
+  @@index([couponId, status])
+  @@index([userId, status])
+}
+model Wishlist {
+  userId String
+  courseId String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  @@id([userId, courseId])
+}
+model CourseReview {
+  id String @id @default(uuid())
+  userId String
+  courseId String
+  rating Int
+  body String
+  status String @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  @@unique([userId, courseId])
+}
+
+model Notification {
+  id String @id @default(uuid())
+  userId String
+  eventKey String @unique
+  title String
+  body String
+  path String?
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  email EmailJob?
+  @@index([userId, readAt, createdAt])
+}
+model Announcement {
+  id String @id @default(uuid())
+  courseId String?
+  title String
+  body String
+  createdById String
+  afterUserId String?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+}
+model SupportTicket {
+  id String @id @default(uuid())
+  userId String
+  subject String
+  status String @default("OPEN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  messages SupportMessage[]
+  @@index([userId, status])
+}
+model SupportMessage {
+  id String @id @default(uuid())
+  ticketId String
+  authorId String
+  body String
+  createdAt DateTime @default(now())
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
 }

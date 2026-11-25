@@ -1,8 +1,18 @@
-# Aspireedge Academy — Admin & Student Course LMS (Milestone 2)
+# AspireEdge Academy LMS
 
-A source-code update to the original Aspireedge internship LMS starter. The new direct-to-student flow has **one platform administrator, public registration, a course storefront, admin-managed offline access and student progress tracking**.
+Local development application with student accounts, courses, offline purchases, assessments, certificates, notifications and support. Your supplied company logo is integrated. Online checkout remains disabled.
 
-**Status: development milestone, not production-ready.** Dependencies and live PostgreSQL/browser tests could not run in the creation environment because the npm registry was unavailable. Run the checks below on your Mac. **Online Razorpay/card/UPI checkout is not yet implemented**; the purchase interface explicitly creates *offline payment requests* that require manual verification.
+**Current validation (25 November 2026):** typecheck, lint, 36 unit tests, 166 integration HTTP assertions and production build passed. Integration checks restore the local database into an isolated disposable database; they never reset the real database. See [implementation status](docs/IMPLEMENTATION_STATUS.md), [known release blockers](docs/KNOWN_ISSUES.md) and [communication operations](docs/COMMUNICATION_OPERATIONS.md).
+
+**Existing installation only:** run `npm run dev` for the app and `npm run worker:local` in a separate terminal for local notifications and mail processing. Email stays on disk; it is not sent externally. Never share `.env` files or local mailbox contents.
+
+**Database warning:** the original applied initial migration SQL is missing. Do not run `prisma migrate reset`, `db push`, or the old migration/seed instructions below against existing data. Recover/reconcile the baseline before fresh deployment. Reviewed additive migrations through communication have already been applied to this local installation.
+
+---
+
+## Historical milestone notes (superseded)
+
+The following describes the original imported update, not the current installation procedure.
 
 ## Implemented in this milestone
 

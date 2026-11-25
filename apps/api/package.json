@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
     "start": "node dist/src/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
@@ -15,7 +15,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "admin:reset-password": "tsx prisma/reset-admin-password.ts",
     "mail:deliver": "tsx prisma/deliver-local-mail.ts",
-    "test:accounts": "tsx prisma/test-accounts.ts"
+    "test:accounts": "tsx prisma/test-accounts.ts",
+    "worker:local": "tsx prisma/notification-worker.ts",
+    "jobs:run": "tsx prisma/notification-worker.ts --once"
   },
   "dependencies": {
     "@prisma/client": "^6.3.1",

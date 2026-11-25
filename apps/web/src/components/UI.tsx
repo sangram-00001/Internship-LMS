@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { AlertCircle, CheckCircle2, X, LoaderCircle } from 'lucide-react';
 
 export function Brand({ compact = false }: { compact?: boolean }) {
-  return <div className="brand"><div className="brand-mark"><span>A</span></div>{!compact && <div className="brand-copy"><strong>aspireedge<span>.</span></strong><small>LEARNING CLOUD</small></div>}</div>;
+  return <div className={`brand brand-official${compact ? ' brand-compact' : ''}`}><img className="brand-logo" src="/brand/aspireedge-20261125.jpg" alt="Aspireedge" width="1080" height="1080"/></div>;
 }
 export function Badge({ children, variant = 'neutral' }: { children: ReactNode; variant?: 'neutral' | 'green' | 'amber' | 'red' | 'blue' }) {
   return <span className={`badge badge-${variant}`}><span className="badge-dot"/>{children}</span>;

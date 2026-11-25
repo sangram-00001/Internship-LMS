@@ -1,4 +1,6 @@
+import { notifyStudent } from '../lib/notifications.js';
 import { enrollmentActive, enrollmentStatus } from '../lib/enrollment.js';
+import { createPurchase, orderInput } from '../lib/commerce.js';
 import analyticsRoutes from './analytics.js';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -136,6 +138,7 @@ router.post('/student/courses/:id/enroll-free', requireStudent, asyncRoute(async
     const record = await tx.directEnrollment.upsert({ where: { userId_courseId: { userId, courseId } },
       create: { userId, courseId, source: 'COMPLIMENTARY', status: 'ACTIVE', note: 'Free course enrollment' },
       update: { expiresAt: null, status: 'ACTIVE', source: 'COMPLIMENTARY', revokedAt: null, note: 'Free course enrollment' } });
+    await notifyStudent(tx, {userId,eventKey:`free-access:${record.id}:${record.updatedAt.toISOString()}`,title:'Course access granted',body:`You can now start ${course.title}.`,path:`/student/learn/${courseId}`});
     await tx.auditLog.create({ data: { actorId: userId, action: 'FREE_COURSE_ENROLL', entityType: 'DirectEnrollment', entityId: record.id } });
     return record;
   });
@@ -148,17 +151,8 @@ router.get('/student/orders', requireStudent, asyncRoute(async (req, res) => {
 }));
 // Purchase request does NOT grant access: admin must independently verify funds received.
 router.post('/student/orders', requireStudent, asyncRoute(async (req, res) => {
-  const { courseId, paymentMethod, paymentReference } = z.object({ courseId: id,
-    paymentMethod: z.enum(['UPI', 'BANK_TRANSFER', 'CASH', 'OTHER']),
-    paymentReference: z.string().trim().max(150).optional() }).parse(req.body);
-  const userId = req.auth!.userId;
-  const course = await prisma.course.findFirst({ where: { id: courseId, tenantId: null, status: 'PUBLISHED' } });
-  if (!course) fail(404, 'COURSE_NOT_FOUND', 'Course not found.');
-  if (await prisma.directEnrollment.findFirst({ where: { userId, courseId, status: 'ACTIVE', OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } })) fail(409, 'ALREADY_ENROLLED', 'You already have access to this course.');
-  const pending = await prisma.courseOrder.findFirst({ where: { userId, courseId, status: 'PENDING' }, orderBy: { createdAt: 'desc' } });
-  if (pending) fail(409, 'ORDER_PENDING', 'A purchase request is already awaiting review.');
-  const order = await prisma.courseOrder.create({ data: { userId, courseId, amountPaise: course.pricePaise, paymentMethod, paymentReference, status: 'PENDING' } });
-  res.status(201).json({ data: { id: order.id, status: order.status, message: 'Purchase request submitted. Admin will verify payment before access is enabled.' } });
+  const order = await createPurchase(req.auth!.userId, orderInput.parse(req.body));
+  res.status(201).json({ data: { id: order.id, status: order.status, totalPaise: order.totalPaise, message: 'Purchase request submitted. Admin will verify payment before access is enabled.' } });
 }));
 
 router.use('/admin', requirePlatform);
@@ -321,6 +315,7 @@ router.post('/admin/orders/:id/approve', asyncRoute(async (req, res) => {
   const order = await prisma.$transaction(async tx => {
     const order = await tx.courseOrder.findFirst({ where: { id: orderId, course: { tenantId: null } } });
     if (!order) fail(404, 'ORDER_NOT_FOUND', 'Order not found.');
+    if (order.orderGroupId) fail(409, 'GROUPED_ORDER', 'Review the complete purchase in Commercial tools to process every course together.');
     if (order.status !== 'PENDING') fail(409, 'ORDER_NOT_PENDING', 'Order was already processed.');
     const current = await tx.directEnrollment.findUnique({ where: { userId_courseId: { userId: order.userId, courseId: order.courseId } } });
     if (current && enrollmentActive(current)) fail(409, 'ALREADY_ENROLLED', 'Student already has course access. Resolve the payment request separately.');
@@ -329,6 +324,7 @@ router.post('/admin/orders/:id/approve', asyncRoute(async (req, res) => {
     await tx.directEnrollment.upsert({ where: { userId_courseId: { userId: order.userId, courseId: order.courseId } },
       create: { userId: order.userId, courseId: order.courseId, source: 'MANUAL_PAYMENT', status: 'ACTIVE', grantedById: adminId, note: `Verified offline order ${orderId}` },
       update: { expiresAt: null, status: 'ACTIVE', source: 'MANUAL_PAYMENT', grantedById: adminId, revokedAt: null, note: `Verified offline order ${orderId}` } });
+    await notifyStudent(tx, {userId:order.userId,eventKey:`offline-payment:${orderId}`,title:'Payment verified and course access granted',body:'Your administrator verified the offline payment. Your course is now available.',path:`/student/learn/${order.courseId}`});
     await tx.auditLog.create({ data: { actorId: adminId, action: 'ORDER_MANUAL_VERIFY', entityType: 'CourseOrder', entityId: orderId, metadata: { courseId: order.courseId, userId: order.userId } } });
     return { ...order, status: 'PAID' };
   });
@@ -340,6 +336,7 @@ router.post('/admin/orders/:id/reject', asyncRoute(async (req, res) => {
   const result = await prisma.$transaction(async tx => {
     const order = await tx.courseOrder.findFirst({ where: { id: orderId, course: { tenantId: null } } });
     if (!order) fail(404, 'ORDER_NOT_FOUND', 'Order not found.');
+    if (order.orderGroupId) fail(409, 'GROUPED_ORDER', 'Review the complete purchase in Commercial tools to process every course together.');
     const updated = await tx.courseOrder.updateMany({ where: { id: orderId, status: 'PENDING' }, data: { status: 'CANCELLED', note: reason, verifiedById: req.auth!.userId, verifiedAt: new Date() } });
     if (!updated.count) fail(409, 'ORDER_ALREADY_PROCESSED', 'Order already processed.');
     await tx.auditLog.create({ data: { actorId: req.auth!.userId, action: 'OFFLINE_ORDER_REJECT', entityType: 'CourseOrder', entityId: orderId, metadata: { reason } } });
@@ -365,6 +362,7 @@ router.post('/admin/enrollments', asyncRoute(async (req, res) => {
         paymentMethod: input.paymentMethod!, paymentReference: input.paymentReference, note: input.note,
         status: 'PAID', verifiedAt: new Date(), verifiedById: adminId } });
     }
+    await notifyStudent(tx, {userId:student.userId,eventKey:`manual-access:${record.id}:${record.updatedAt.toISOString()}`,title:input.source==='MANUAL_PAYMENT'?'Payment recorded and course access granted':'Course access granted',body:`Your administrator has enabled access to ${course.title}.`,path:`/student/learn/${course.id}`});
     await tx.auditLog.create({ data: { actorId: adminId, action: 'COURSE_ACCESS_GRANT', entityType: 'DirectEnrollment', entityId: record.id,
       metadata: { studentCode: input.studentCode, courseId: course.id, source: input.source, expiresAt: input.expiresAt || null, note: input.note } } });
     return record;

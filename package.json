@@ -17,7 +17,9 @@
     "lint": "eslint apps",
     "admin:reset-password": "npm run admin:reset-password -w @aspireedge/api --",
     "mail:deliver": "npm run mail:deliver -w @aspireedge/api",
-    "test:accounts": "npm run test:accounts -w @aspireedge/api"
+    "test:accounts": "npm run test:accounts -w @aspireedge/api",
+    "worker:local": "npm run worker:local -w @aspireedge/api",
+    "jobs:run": "npm run jobs:run -w @aspireedge/api"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "^8.74.0",

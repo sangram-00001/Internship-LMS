@@ -6,6 +6,8 @@ import { AdminCourseBuilder } from './pages/CourseBuilder';
 import { Information } from './pages/Information';
 import { AdminAccess } from './pages/CourseAccess';
 import { StudentProfile, EnrollmentReport } from './pages/Analytics';
+import { AdminCommunication, Notifications, Support } from './pages/Communication';
+import { AdminCommerce, StudentCommerce, Bundles } from './pages/Commerce';
 import { AdminCertificates, StudentCertificates, VerifyCertificate } from './pages/Certificates';
 import { AdminAssessments, StudentAssessments } from './pages/Assessments';
 import { AccountLink, Profile } from './pages/Account';
@@ -28,6 +30,7 @@ export default function App() {
    <Route path="/about" element={<Information page="about"/>}/>
    <Route path="/faq" element={<Information page="faq"/>}/>
    <Route path="/contact" element={<Information page="contact"/>}/>
+   <Route path="/bundles" element={<Bundles/>}/>
    <Route path="/courses" element={<Catalog/>}/>
    <Route path="/courses/:id" element={<CourseDetails/>}/>
    <Route path="/login" element={<Login/>}/>
@@ -40,6 +43,9 @@ export default function App() {
      <Route path="/admin" element={<AdminDashboard/>}/>
      <Route path="/admin/courses" element={<AdminCourses/>}/>
      <Route path="/admin/courses/:id" element={<AdminCourseBuilder/>}/>
+     <Route path="/admin/communication" element={<AdminCommunication/>}/>
+     <Route path="/admin/support" element={<Support/>}/>
+     <Route path="/admin/commerce" element={<AdminCommerce/>}/>
      <Route path="/admin/certificates" element={<AdminCertificates/>}/>
      <Route path="/admin/assessments" element={<AdminAssessments/>}/>
      <Route path="/admin/reports" element={<EnrollmentReport/>}/>
@@ -49,6 +55,9 @@ export default function App() {
      <Route path="/admin/orders" element={<AdminOrders/>}/>
    </Route>
    <Route element={<Guard role="STUDENT"/>}>
+     <Route path="/student/notifications" element={<Notifications/>}/>
+     <Route path="/student/support" element={<Support/>}/>
+     <Route path="/student/wishlist" element={<StudentCommerce/>}/>
      <Route path="/student/certificates" element={<StudentCertificates/>}/>
      <Route path="/student/assessments" element={<StudentAssessments/>}/>
      <Route path="/student/profile" element={<Profile/>}/>

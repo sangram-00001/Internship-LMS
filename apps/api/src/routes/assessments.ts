@@ -1,3 +1,4 @@
+import { notifyStudent } from '../lib/notifications.js';
 import express, { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -81,6 +82,7 @@ router.post('/admin/submissions/:id/reviews', requirePlatform, asyncRoute(async 
   if (data.score > submission.assignment.maxScore) fail(422, 'INVALID_SCORE', 'Score exceeds assignment maximum.');
   const review = await prisma.$transaction(async tx => {
     const record = await tx.assignmentReview.create({ data: { ...data, submissionId: submission.id, reviewerId: req.auth!.userId } });
+    await notifyStudent(tx, {userId:submission.userId,eventKey:`assignment-grade:${record.id}`,title:'Assignment feedback is ready',body:`Your administrator evaluated ${submission.assignment.title}. Open your assignments to review the result.`,path:'/student/assessments'});
     await tx.auditLog.create({ data: { actorId: req.auth!.userId, action: 'ASSIGNMENT_GRADED', entityType: 'AssignmentSubmission', entityId: submission.id, metadata: { score: data.score } } });
     return record;
   }); res.status(201).json({ data: review });
