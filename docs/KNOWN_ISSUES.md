@@ -1,7 +1,7 @@
 # Known issues and release blockers
 
 - The original applied migration `20261123182746_init` is missing from disk and the downloaded source ZIP. PostgreSQL still retains its original migration record. Do not accept a development migration reset. Recover the original SQL or undertake a separately reviewed baseline-reconciliation procedure before fresh deployment. New migrations were reviewed and applied with migrate deploy after backup/restore validation.
-- npm audit currently reports 11 findings: 3 moderate, 6 high, 2 critical. Critical findings involve vitest/tinypool; others include Prisma transitive packages, Zod, Vite and React Router. Some fixes require major-version upgrades. Full details are in the private development backup's dependency-audit.json. No force upgrade was run.
+- The 26 November container install reports 13 dependency findings: 5 moderate, 6 high, 2 critical. Critical findings involve vitest/tinypool; others include Prisma transitive packages, Zod, Vite and React Router. Some fixes require major-version upgrades. Full details are in the private development backup's dependency-audit.json. No force upgrade was run.
 - Production transactional email and course-file storage are not configured. User selected local development adapters. Local email requires `npm run worker:local` (continuous) or `npm run jobs:run` (one cycle); it does not deliver to inboxes. Course files now have a private local adapter; production upload is disabled.
 - Email verification is tracked and displayed but does not yet gate all academy actions. Existing users are not automatically treated as verified.
 - Recovery responses do not reveal account existence in content, but production timing/abuse testing and distributed rate limiting remain.
