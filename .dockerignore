@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+.git
+**/.env
+**/.env.*
+**/.local-mail
+**/.local-storage
+backups
+tmp
+**/*.dump
+**/*.log
+**/*.pem
+**/*.key
+coverage

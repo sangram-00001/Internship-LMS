@@ -1,4 +1,6 @@
 import express from 'express';
+import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -32,6 +34,21 @@ app.use((req, _res, next) => {
   next();
 });
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'aspireedge-api' }));
+// Serve the built frontend on the same origin as session-cookie API requests.
+if (process.env.WEB_DIST_PATH) {
+  const directory = resolve(process.env.WEB_DIST_PATH);
+  if (!existsSync(resolve(directory, 'index.html'))) throw new Error('WEB_DIST_PATH must contain a built frontend.');
+  const serveStatic = express.static(directory, { index: false });
+  app.use((req, res, next) => {
+    if (req.path === '/api' || req.path.startsWith('/api/')) return next();
+    return serveStatic(req, res, next);
+  });
+  app.get('*', (req, res, next) => {
+    if (req.path === '/api' || req.path.startsWith('/api/') || !req.accepts('html') || /\.[^/]+$/.test(req.path)) return next();
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(resolve(directory, 'index.html'));
+  });
+}
 app.use(loadSession);
 app.use((req, res, next) => {
   if (req.path === '/api/v1/auth/login' || req.path === '/api/v1/auth/invitations/accept') return next();
